@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../providers/booking_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/bottom_nav_bar.dart';
-import '../car/car_details_screen.dart';
 
 class MyCarScreen extends StatefulWidget {
   const MyCarScreen({super.key});
@@ -17,7 +15,7 @@ class _MyCarScreenState extends State<MyCarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bookingProvider = context.watch<BookingProvider>();
+    // final bookingProvider = context.watch<BookingProvider>(); // Unused variable removed
     final authProvider = context.watch<AuthProvider>();
 
     return Scaffold(
@@ -396,4 +394,9 @@ class _MyCarScreenState extends State<MyCarScreen> {
     }
   }
 }
+
+
+
+
+
 

@@ -27,15 +27,30 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    await authProvider.verifyOTP(widget.phoneNumber, _otpController.text);
+    
+    try {
+      await authProvider.verifyOTP(_otpController.text);
 
-    if (authProvider.isAuthenticated && mounted) {
-      // Skip KYC verification for demo - go directly to home
-      Navigator.of(context).pushReplacementNamed('/home');
-    } else if (authProvider.errorMessage != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authProvider.errorMessage!)),
-      );
+      if (authProvider.isAuthenticated && mounted) {
+        Navigator.of(context).pushReplacementNamed('/home');
+      } else if (authProvider.errorMessage != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(authProvider.errorMessage!),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final errorMsg = authProvider.errorMessage ?? e.toString();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Verification failed: $errorMsg'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 

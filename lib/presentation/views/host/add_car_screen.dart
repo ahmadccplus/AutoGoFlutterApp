@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:provider/provider.dart';
-import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../../data/repositories/car_repository.dart';
 import '../../providers/car_provider.dart';

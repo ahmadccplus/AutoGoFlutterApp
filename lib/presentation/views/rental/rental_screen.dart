@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/booking_provider.dart';
 import '../../widgets/bottom_nav_bar.dart';
-import '../car/car_details_screen.dart';
 
 class RentalScreen extends StatefulWidget {
   const RentalScreen({super.key});
@@ -237,4 +236,9 @@ class _RentalScreenState extends State<RentalScreen> {
     }
   }
 }
+
+
+
+
+
 

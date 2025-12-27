@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import 'package:signature/signature.dart';
 import '../../providers/booking_provider.dart';
 import '../../providers/car_provider.dart';
-import '../../widgets/custom_button.dart';
 import '../../widgets/loading_indicator.dart';
 import '../payment/payment_screen.dart';
 

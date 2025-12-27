@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'firebase_options.dart';
 import 'core/theme/app_theme.dart';
 import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/car_provider.dart';
@@ -25,14 +26,18 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Firebase (optional - wrap in try-catch for testing without Firebase)
+  // Initialize Firebase with options
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
     // Initialize notifications
     await NotificationService.initialize();
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   } catch (e) {
-    print('Firebase initialization failed (optional): $e');
+    print('Firebase initialization failed: $e');
+    print('Please configure Firebase by running: flutterfire configure');
+    print('Or manually update lib/firebase_options.dart with your Firebase project settings');
     // App can still run without Firebase for basic testing
   }
   

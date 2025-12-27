@@ -43,8 +43,23 @@ class ApiClient {
             await prefs.remove(AppConstants.keyUserData);
             print('Token invalid, cleared from storage');
           }
-          // Log error for debugging
-          print('API Error: ${error.requestOptions.path} - ${error.response?.statusCode} - ${error.response?.data}');
+          // Log detailed error for debugging
+          print('API Error Details:');
+          print('  Path: ${error.requestOptions.path}');
+          print('  Full URL: ${error.requestOptions.uri}');
+          print('  Method: ${error.requestOptions.method}');
+          print('  Base URL: ${error.requestOptions.baseUrl}');
+          print('  Status Code: ${error.response?.statusCode}');
+          print('  Response Data: ${error.response?.data}');
+          print('  Error Type: ${error.type}');
+          print('  Error Message: ${error.message}');
+          
+          // If response is null, it's likely a connection error
+          if (error.response == null) {
+            print('  WARNING: No response received - connection may have failed');
+            print('  Request data: ${error.requestOptions.data}');
+          }
+          
           return handler.next(error);
         },
       ),

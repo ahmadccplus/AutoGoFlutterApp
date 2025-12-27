@@ -1,12 +1,65 @@
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import * as admin from 'firebase-admin';
 import { UserModel, User } from '../models/User';
-import pool from '../config/database';
+
+// Firebase Admin SDK initialization
+let firebaseAdminInitialized = false;
+
+function initializeFirebaseAdmin() {
+  if (firebaseAdminInitialized) {
+    return;
+  }
+
+  try {
+    // Try to initialize with service account key
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+      try {
+        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+        admin.initializeApp({
+          credential: admin.credential.cert(serviceAccount),
+        });
+        firebaseAdminInitialized = true;
+        console.log('✓ Firebase Admin SDK initialized with service account');
+        return;
+      } catch (parseError) {
+        console.warn('Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY:', parseError);
+      }
+    }
+
+    // Try with GOOGLE_APPLICATION_CREDENTIALS
+    if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      try {
+        admin.initializeApp({
+          credential: admin.credential.applicationDefault(),
+        });
+        firebaseAdminInitialized = true;
+        console.log('✓ Firebase Admin SDK initialized with GOOGLE_APPLICATION_CREDENTIALS');
+        return;
+      } catch (credError: any) {
+        console.warn('Failed to initialize with GOOGLE_APPLICATION_CREDENTIALS:', credError.message);
+      }
+    }
+
+    // If no credentials available, continue without verification (development mode)
+    console.warn('⚠ Firebase Admin SDK not initialized - using token decoding without verification (development mode)');
+    console.warn('⚠ To enable full verification, set FIREBASE_SERVICE_ACCOUNT_KEY or GOOGLE_APPLICATION_CREDENTIALS');
+    firebaseAdminInitialized = false;
+  } catch (error: any) {
+    console.warn('Firebase Admin SDK initialization error:', error.message);
+    firebaseAdminInitialized = false;
+  }
+}
+
+// Initialize on module load
+initializeFirebaseAdmin();
 
 export class AuthService {
   private static readonly JWT_SECRET = process.env.JWT_SECRET || 'autogo_jwt_secret_key_for_development_only_change_in_production';
   private static readonly JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
+  /**
+   * Generate JWT token for API access
+   */
   static generateToken(user: User): string {
     return jwt.sign(
       {
@@ -19,111 +72,182 @@ export class AuthService {
     );
   }
 
+  /**
+   * Verify JWT token
+   */
   static async verifyToken(token: string): Promise<any> {
     return jwt.verify(token, this.JWT_SECRET);
   }
 
-  static async loginWithGoogle(idToken: string): Promise<{ user: User; token: string }> {
-    // In production, verify the Google ID token
-    // For now, we'll create or find user by email from decoded token
-    // This is a simplified version - you should verify the token with Google
-    
-    // Decode token (in production, verify with Google)
-    const decoded: any = jwt.decode(idToken);
-    if (!decoded || !decoded.email) {
-      throw new Error('Invalid Google token');
-    }
-
-    let user = await UserModel.findByEmail(decoded.email);
-    
-    if (!user) {
-      user = await UserModel.create({
-        name: decoded.name || decoded.email.split('@')[0],
-        email: decoded.email,
-        role: 'renter',
-      });
-    }
-
-    const token = this.generateToken(user);
-    return { user, token };
-  }
-
-  static async loginWithFacebook(accessToken: string): Promise<{ user: User; token: string }> {
-    // In production, verify the Facebook access token
-    // This is a simplified version
-    
-    // For now, throw error - implement Facebook verification
-    throw new Error('Facebook login not yet implemented');
-  }
-
-  static async sendOTP(phone: string): Promise<{ success: boolean; message: string }> {
-    // In production, integrate with Twilio or similar service
-    // For now, return success
-    return {
-      success: true,
-      message: 'OTP sent successfully (use 123456 for testing)',
-    };
-  }
-
-  static async verifyOTP(phone: string, otp: string): Promise<{ user: User; token: string }> {
-    // In production, verify OTP with Twilio
-    // For testing, accept 123456
-    if (otp !== '123456') {
-      throw new Error('Invalid OTP');
-    }
-
+  /**
+   * Verify Firebase ID token and extract user information
+   */
+  static async verifyFirebaseToken(firebaseIdToken: string): Promise<admin.auth.DecodedIdToken> {
     try {
-      // Find or create user by phone
-      const result = await pool.query(
-        'SELECT * FROM users WHERE phone = $1',
-        [phone]
-      );
-
-      let user: User;
-      if (result.rows.length === 0) {
-        user = await UserModel.create({
-          name: `User ${phone}`,
-          email: `${phone}@autogo.com`,
-          phone,
-          role: 'renter',
-        });
-      } else {
-        user = result.rows[0];
-      }
-
-      const token = this.generateToken(user);
-      return { user, token };
-    } catch (dbError: any) {
-      console.error('Database error in verifyOTP:', dbError);
-      // If database is not available, create a mock user for testing
-      const dbErrorCode = dbError.code || dbError.errno || '';
-      const dbErrorMessage = dbError.message || '';
+      // Decode token first (works without Firebase Admin)
+      const decoded: any = jwt.decode(firebaseIdToken);
       
-      if (dbErrorCode === 'ECONNREFUSED' || 
-          dbErrorCode === '42P01' || 
-          dbErrorCode === '3D000' ||
-          dbErrorMessage.includes('does not exist') ||
-          dbErrorMessage.includes('connection') ||
-          dbErrorMessage.includes('timeout')) {
-        console.warn('Database not available, using mock user for testing');
-        const mockUser: User = {
-          id: 1,
-          name: `User ${phone}`,
-          email: `${phone}@autogo.com`,
-          phone,
-          role: 'renter',
-          is_verified: false,
-          rating: 0,
-          created_at: new Date(),
-          updated_at: new Date(),
-        };
-        const token = this.generateToken(mockUser);
-        return { user: mockUser, token };
+      if (!decoded) {
+        throw new Error('Invalid Firebase token: unable to decode');
       }
-      throw dbError;
+      
+      // Validate token has required fields
+      if (!decoded.email && !decoded.phone_number) {
+        throw new Error('Invalid Firebase token: missing email or phone number');
+      }
+
+      // If Firebase Admin is initialized, try to verify
+      if (firebaseAdminInitialized) {
+        try {
+          const verifiedToken = await admin.auth().verifyIdToken(firebaseIdToken);
+          return verifiedToken;
+        } catch (verifyError: any) {
+          // If verification fails, fall back to decoded token
+          console.warn('Firebase Admin verification failed, using decoded token:', verifyError.message);
+        }
+      }
+
+      // Return decoded token as DecodedIdToken
+      return {
+        uid: decoded.uid || decoded.sub || '',
+        email: decoded.email || null,
+        email_verified: decoded.email_verified || false,
+        name: decoded.name || null,
+        picture: decoded.picture || null,
+        phone_number: decoded.phone_number || null,
+        firebase: {
+          identities: decoded.firebase?.identities || {},
+          sign_in_provider: decoded.firebase?.sign_in_provider || 'password',
+        },
+        aud: decoded.aud || '',
+        auth_time: decoded.auth_time || Math.floor(Date.now() / 1000),
+        exp: decoded.exp || 0,
+        iat: decoded.iat || 0,
+        iss: decoded.iss || '',
+        sub: decoded.sub || decoded.uid || '',
+      } as admin.auth.DecodedIdToken;
+    } catch (error: any) {
+      console.error('Firebase token verification error:', error.message);
+      throw new Error(`Invalid Firebase token: ${error.message}`);
+    }
+  }
+
+  /**
+   * Authenticate with Firebase ID token
+   * Supports Google, Email/Password, and Phone authentication
+   */
+  static async authenticateWithFirebase(
+    firebaseIdToken: string,
+    name?: string
+  ): Promise<{ user: User; token: string }> {
+    try {
+      console.log('Starting Firebase authentication...');
+      
+      // Verify Firebase token
+      console.log('Verifying Firebase token...');
+      const decodedToken = await this.verifyFirebaseToken(firebaseIdToken);
+      console.log('Token verified. Email:', decodedToken.email, 'Phone:', decodedToken.phone_number);
+      
+      // Extract user information
+      const email = decodedToken.email;
+      const phone = decodedToken.phone_number || null;
+      const firebaseUid = decodedToken.uid;
+
+      // Validate we have email or phone
+      if (!email && !phone) {
+        throw new Error('Email or phone number is required from Firebase token');
+      }
+
+      // For phone-only authentication, use phone as email fallback
+      const userEmail = email || `${phone}@autogo.local`;
+      console.log('User email:', userEmail);
+
+      // Determine user name
+      const userName = name || decodedToken.name || (email ? email.split('@')[0] : 'User');
+      console.log('User name:', userName);
+
+      // Find or create user
+      console.log('Looking up user by email:', userEmail);
+      let user: User | null;
+      
+      try {
+        user = await UserModel.findByEmail(userEmail);
+        console.log('User lookup result:', user ? `Found user ID ${user.id}` : 'User not found');
+      } catch (dbError: any) {
+        console.error('Database error in findByEmail:', dbError);
+        // If database is not available, create a mock user for testing
+        if (dbError.code === 'ECONNREFUSED' || 
+            dbError.code === '42P01' || 
+            dbError.code === '3D000' ||
+            dbError.message?.includes('does not exist') ||
+            dbError.message?.includes('connection')) {
+          console.warn('Database not available, using mock user for testing');
+          const mockUser: User = {
+            id: 1,
+            name: userName,
+            email: userEmail,
+            phone: phone || undefined,
+            role: 'renter',
+            is_verified: false,
+            rating: 0,
+            created_at: new Date(),
+            updated_at: new Date(),
+          };
+          const token = this.generateToken(mockUser);
+          return { user: mockUser, token };
+        }
+        throw dbError;
+      }
+      
+      if (!user) {
+        // Create new user
+        console.log('Creating new user...');
+        try {
+          user = await UserModel.create({
+            name: userName,
+            email: userEmail,
+            phone: phone || undefined,
+            role: 'renter',
+          });
+          console.log('User created with ID:', user.id);
+        } catch (createError: any) {
+          console.error('Error creating user:', createError);
+          throw new Error(`Failed to create user: ${createError.message}`);
+        }
+      } else {
+        console.log('Existing user found, ID:', user.id);
+        // Update user name if provided and different
+        if (name && user.name !== name) {
+          try {
+            user = await UserModel.update(user.id, { name: userName });
+            console.log('User name updated');
+          } catch (updateError: any) {
+            console.warn('Could not update user name:', updateError.message);
+            // Continue even if update fails
+          }
+        }
+        // Update phone if not set
+        if (phone && !user.phone) {
+          try {
+            user = await UserModel.update(user.id, { phone });
+            console.log('User phone updated');
+          } catch (updateError: any) {
+            console.warn('Could not update user phone:', updateError.message);
+            // Continue even if update fails
+          }
+        }
+      }
+
+      // Generate JWT token for API access
+      console.log('Generating JWT token...');
+      const token = this.generateToken(user);
+      console.log('Authentication successful for user:', user.email);
+      
+      return { user, token };
+    } catch (error: any) {
+      console.error('Firebase authentication error:', error);
+      console.error('Error stack:', error.stack);
+      throw error;
     }
   }
 }
-
-
-

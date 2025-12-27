@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../providers/car_provider.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import '../host/add_car_screen.dart';
 
@@ -230,4 +228,9 @@ class _PostCarScreenState extends State<PostCarScreen> {
     }
   }
 }
+
+
+
+
+
 

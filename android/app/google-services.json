@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "660428197742",
+    "project_id": "autogoflutterapp",
+    "storage_bucket": "autogoflutterapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:660428197742:android:14716b68792b39141d3b7f",
+        "android_client_info": {
+          "package_name": "com.autogo.autogo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAyKFuqK7ngWy0sAJCmfsZXeCFs6LjGgr0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

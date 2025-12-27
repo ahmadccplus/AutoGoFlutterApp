@@ -60,3 +60,8 @@ echo "3. Run database migrations: psql -U postgres -d autogo_db -f backend/migra
 echo "4. Start backend: cd backend && npm run dev"
 echo "5. Run Flutter app: flutter run"
 
+
+
+
+
+

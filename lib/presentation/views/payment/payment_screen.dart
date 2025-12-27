@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/payment_provider.dart';
 import '../../providers/booking_provider.dart';
-import '../../widgets/custom_button.dart';
-import '../../widgets/loading_indicator.dart';
 
 class PaymentScreen extends StatefulWidget {
   final int bookingId;

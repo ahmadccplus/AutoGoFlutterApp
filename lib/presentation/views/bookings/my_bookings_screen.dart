@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import '../../providers/booking_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/bottom_nav_bar.dart';
-import '../car/car_details_screen.dart';
 
 class MyBookingsScreen extends StatefulWidget {
   const MyBookingsScreen({super.key});
@@ -172,7 +171,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
       );
     }
 
-    final booking = currentBookings.first;
+    // final booking = currentBookings.first; // Unused variable removed
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
@@ -497,4 +496,9 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     }
   }
 }
+
+
+
+
+
 

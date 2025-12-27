@@ -78,3 +78,8 @@ echo "   - Check backend: curl http://localhost:3000/health"
 echo ""
 echo "=========================================="
 
+
+
+
+
+

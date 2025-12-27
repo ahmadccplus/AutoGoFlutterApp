@@ -5,9 +5,10 @@ import '../../data/models/user_model.dart';
 import '../../services/auth_service.dart';
 import '../../data/repositories/auth_repository.dart';
 
+/// Provider for managing authentication state
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();
-  final AuthRepository _authRepository = AuthRepository();
+  final AuthRepository _repository = AuthRepository();
 
   UserModel? _user;
   bool _isLoading = false;
@@ -20,23 +21,30 @@ class AuthProvider extends ChangeNotifier {
   bool get isAuthenticated => _isAuthenticated;
 
   AuthProvider() {
-    checkAuthStatus();
+    _initialize();
   }
 
+  /// Initialize and check authentication status
+  Future<void> _initialize() async {
+    await checkAuthStatus();
+  }
+
+  /// Check authentication status
   Future<bool> checkAuthStatus() async {
     try {
-      _isLoading = true;
-      notifyListeners();
+      _setLoading(true);
+      _clearError();
 
       final isAuth = await _authService.isAuthenticated();
+      
       if (isAuth) {
         try {
-          _user = await _authRepository.getCurrentUser();
+          _user = await _repository.getCurrentUser();
           _isAuthenticated = true;
         } catch (e) {
-          // If token is invalid (403/401), clear auth state
-          if (e.toString().contains('403') || e.toString().contains('401')) {
-            await _authService.clearAuthToken();
+          // If token is invalid, clear auth state
+          if (e.toString().contains('401') || e.toString().contains('403')) {
+            await _authService.signOut();
             _isAuthenticated = false;
             _user = null;
           } else {
@@ -45,114 +53,195 @@ class AuthProvider extends ChangeNotifier {
         }
       } else {
         _isAuthenticated = false;
+        _user = null;
       }
 
-      _isLoading = false;
-      notifyListeners();
+      _setLoading(false);
       return _isAuthenticated;
     } catch (e) {
-      _errorMessage = e.toString();
-      _isLoading = false;
+      _setError(e.toString());
+      _setLoading(false);
       _isAuthenticated = false;
       _user = null;
-      notifyListeners();
       return false;
     }
   }
 
+  /// Sign in with Google
   Future<void> signInWithGoogle() async {
     try {
-      _isLoading = true;
-      _errorMessage = null;
-      notifyListeners();
+      _setLoading(true);
+      _clearError();
 
       final result = await _authService.signInWithGoogle();
       _user = UserModel.fromJson(result['user'] as Map<String, dynamic>);
       _isAuthenticated = true;
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(AppConstants.keyUserId, _user!.id);
-      await prefs.setString(
-          AppConstants.keyUserData, _user!.toJson().toString());
-
-      _isLoading = false;
-      notifyListeners();
+      await _saveUserToPrefs(_user!);
+      _setLoading(false);
     } catch (e) {
-      _errorMessage = e.toString();
-      _isLoading = false;
+      final errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _setError(errorMessage);
+      _setLoading(false);
       _isAuthenticated = false;
-      notifyListeners();
-    }
-  }
-
-  Future<void> sendOTP(String phoneNumber) async {
-    try {
-      _isLoading = true;
-      _errorMessage = null;
-      notifyListeners();
-
-      await _authService.signInWithPhone(phoneNumber);
-
-      _isLoading = false;
-      notifyListeners();
-    } catch (e) {
-      _errorMessage = e.toString();
-      _isLoading = false;
-      notifyListeners();
       rethrow;
     }
   }
 
-  Future<void> verifyOTP(String phoneNumber, String otp) async {
+  /// Sign up with email and password
+  Future<void> signUpWithEmailPassword(
+    String email,
+    String password,
+    String name,
+  ) async {
     try {
-      _isLoading = true;
-      _errorMessage = null;
-      notifyListeners();
+      _setLoading(true);
+      _clearError();
 
-      final result = await _authService.verifyPhoneOTP(phoneNumber, otp);
+      final result = await _authService.signUpWithEmailPassword(
+        email,
+        password,
+        name,
+      );
+      
       _user = UserModel.fromJson(result['user'] as Map<String, dynamic>);
       _isAuthenticated = true;
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(AppConstants.keyUserId, _user!.id);
-      await prefs.setString(
-          AppConstants.keyUserData, _user!.toJson().toString());
-
-      _isLoading = false;
-      notifyListeners();
+      await _saveUserToPrefs(_user!);
+      _setLoading(false);
     } catch (e) {
-      _errorMessage = e.toString();
-      _isLoading = false;
+      final errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _setError(errorMessage);
+      _setLoading(false);
       _isAuthenticated = false;
-      notifyListeners();
       rethrow;
     }
   }
 
-  Future<void> logout() async {
+  /// Sign in with email and password
+  Future<void> signInWithEmailPassword(
+    String email,
+    String password,
+  ) async {
     try {
-      _isLoading = true;
-      notifyListeners();
+      _setLoading(true);
+      _clearError();
 
-      await _authService.clearAuthToken();
-      await _authRepository.logout();
-      _user = null;
-      _isAuthenticated = false;
+      final result = await _authService.signInWithEmailPassword(email, password);
+      _user = UserModel.fromJson(result['user'] as Map<String, dynamic>);
+      _isAuthenticated = true;
 
-      _isLoading = false;
-      notifyListeners();
+      await _saveUserToPrefs(_user!);
+      _setLoading(false);
     } catch (e) {
-      _errorMessage = e.toString();
-      _isLoading = false;
-      notifyListeners();
+      final errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _setError(errorMessage);
+      _setLoading(false);
+      _isAuthenticated = false;
+      rethrow;
     }
   }
 
+  /// Send phone verification code
+  Future<void> sendOTP(String phoneNumber) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      await _authService.sendPhoneVerificationCode(phoneNumber);
+      _setLoading(false);
+    } catch (e) {
+      _setError(e.toString());
+      _setLoading(false);
+      rethrow;
+    }
+  }
+
+  /// Verify phone OTP
+  Future<void> verifyOTP(String smsCode) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      final result = await _authService.verifyPhoneOTP(smsCode);
+      _user = UserModel.fromJson(result['user'] as Map<String, dynamic>);
+      _isAuthenticated = true;
+
+      await _saveUserToPrefs(_user!);
+      _setLoading(false);
+    } catch (e) {
+      final errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _setError(errorMessage);
+      _setLoading(false);
+      _isAuthenticated = false;
+      rethrow;
+    }
+  }
+
+  /// Send password reset email
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      await _authService.sendPasswordResetEmail(email);
+      _setLoading(false);
+    } catch (e) {
+      _setError(e.toString());
+      _setLoading(false);
+      rethrow;
+    }
+  }
+
+  /// Logout
+  Future<void> logout() async {
+    try {
+      _setLoading(true);
+
+      await _authService.signOut();
+      await _repository.logout();
+      
+      _user = null;
+      _isAuthenticated = false;
+      _clearError();
+
+      _setLoading(false);
+    } catch (e) {
+      _setError(e.toString());
+      _setLoading(false);
+    }
+  }
+
+  /// Clear error message
   void clearError() {
+    _clearError();
+  }
+
+  // Private helper methods
+
+  void _setLoading(bool loading) {
+    _isLoading = loading;
+    notifyListeners();
+  }
+
+  void _setError(String? error) {
+    _errorMessage = error;
+    notifyListeners();
+  }
+
+  void _clearError() {
     _errorMessage = null;
     notifyListeners();
   }
+
+  Future<void> _saveUserToPrefs(UserModel user) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(AppConstants.keyUserId, user.id);
+      // Note: SharedPreferences doesn't support Map, so we'd need to serialize
+      // For now, the token is saved in AuthService
+    } catch (e) {
+      print('Error saving user to prefs: $e');
+    }
+  }
 }
-
-
-
