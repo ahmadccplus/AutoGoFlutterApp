@@ -28,43 +28,39 @@ A modern car rental marketplace built with Flutter (Android) and Node.js backend
 
 ## 🚀 Quick Start
 
-**For detailed setup instructions, see [SETUP.md](./SETUP.md)**
+**See [SETUP.md](./SETUP.md) for setup instructions**
 
 ### Prerequisites
 - Node.js (v18+)
 - Flutter SDK
-- Android Studio with Android emulator
-- PostgreSQL (optional - app works without it)
+- Android Studio
 
 ### Quick Setup
 
-1. **Clone the repository:**
+1. **Clone and install:**
    ```bash
    git clone https://github.com/ahmadccplus/AutoGoFlutterApp.git
    cd AutoGoFlutterApp
    ```
 
-2. **Setup Backend:**
+2. **Backend:**
    ```bash
    cd backend
    npm install
-   # Create .env file (see SETUP.md for details)
    cp .env.example .env
-   # Edit .env with your configuration
+   # Edit .env with your values
    npm run dev
    ```
 
-3. **Setup Flutter App:**
+3. **Flutter:**
    ```bash
-   cd ..
    flutter pub get
-   # Configure Firebase (see SETUP.md)
    # Update lib/core/constants/app_constants.dart with your API URL
    ```
 
-4. **Run the app:**
-   - Open project in Android Studio
-   - Start Android emulator
+4. **Run:**
+   - Open in Android Studio
+   - Start emulator
    - Click Run (▶️)
 
 ## 📚 Documentation
@@ -74,28 +70,21 @@ A modern car rental marketplace built with Flutter (Android) and Node.js backend
 
 ## ⚙️ Configuration
 
+### Required Files (Not in Repository)
+
+You need to create these files manually:
+
+1. **`backend/.env`** - Copy from `backend/.env.example` and update values
+   - Required: `PORT`, `JWT_SECRET`
+   - Optional: Database and Firebase settings
+
+2. **`android/app/google-services.json`** - Download from Firebase Console (if using Firebase)
+
 ### Environment Variables
 
-The backend requires a `.env` file in the `backend/` folder. See `backend/.env.example` for a template.
-
-**Required for basic functionality:**
-- `PORT` - Server port (default: 3000)
-- `JWT_SECRET` - Secret key for JWT tokens
-
-**Optional (app works without these in demo mode):**
-- Database configuration (`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`)
-- Firebase configuration (`FIREBASE_SERVICE_ACCOUNT_KEY` or `GOOGLE_APPLICATION_CREDENTIALS`)
-- Stripe configuration (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`)
-
-### Firebase Setup
-
-1. Create a Firebase project at [Firebase Console](https://console.firebase.google.com/)
-2. Enable Authentication (Email/Password, Google, Phone)
-3. Add Android app to Firebase
-4. Download `google-services.json` and place it in `android/app/`
-5. Update `lib/firebase_options.dart` with your Firebase configuration
-
-See [SETUP.md](./SETUP.md) for detailed Firebase setup instructions.
+See `backend/.env.example` for all available options. Minimum required:
+- `PORT=3000`
+- `JWT_SECRET=your_secret_key`
 
 ### API URL Configuration
 
